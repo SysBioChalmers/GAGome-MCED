@@ -23,6 +23,8 @@ Manuscript doi:
 
 ## 👋 Contact
 
-Please reach out with any comments, questions or concerns:
-[![email](https://img.shields.io/badge/email-fz274%40cam.ac.uk-%23a6bddb)](bratulic@chalmers.se)
-[![email](https://img.shields.io/badge/email-fz274%40cam.ac.uk-%23a6bddb)](angelol@chalmers.se)
+Please reach out to our email with any comments, questions or concerns:
+
+[Sinisa Bratulic](mailto:bratulic@chalmers.se)
+
+[Angelo Limeta](mailto:angelol@chalmers.se)
