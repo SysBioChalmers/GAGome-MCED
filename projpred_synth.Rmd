@@ -1,0 +1,333 @@
+---
+title: "Projection predictive feature selection for the MCED GAGome score"
+author: "Sinisa Bratulic"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    number_sections: true
+    df_print: paged
+editor_options: 
+  chunk_output_type: console
+---
+
+# Introduction
+
+This report accompanies the article 'Noninvasive detection of any-stage cancer using free glycosaminoglycans'.
+
+It demonstrates the use of projection predictive feature selection to create a model for predicting the probability of cancer based on free plasma and urine GAGomes. At its core, the procedure starts with fitting a reference model (Bayesian logistic regression model) using all the available GAGome feature, and then using projection predictive feature selection to reduce the number of features to the most informative ones.
+
+Because of the sensitive nature of clinical data used in the article, this demonstration is limited to a synthetic dataset that has similar characteristics as the real data.
+
+# Setup
+
+Load libraries that we use throught the analysis.
+
+```{r setup, warning=F, message=F}
+library(tidyverse)
+library(rstanarm)
+library(projpred)
+library(tidybayes)
+library(broom.mixed)
+library(pROC)
+library(patchwork)
+library(cutpointr)
+library(gt)
+library(coda)
+options(mc.cores = parallel::detectCores())
+```
+
+Load the synthetic data set.
+
+```{r}
+
+data_synth <- read.delim("data/synthetic.csv", sep = "\t") %>% 
+  mutate(y = factor(y))
+
+```
+
+
+
+```{r}
+str(data_synth)
+
+```
+
+The data contain synthetic (standardized) GAGome values and associated 'outcome' variable stored in the y:
+
+- y is encoded as a binary variable (0 is control, 1 is cancer)
+
+- Columns that end with `_conc` suffix contain standardized values of measured absolute GAGome concentrations in ug/mL. 
+
+- Columns with the same name, but without the suffix contains standardized values of the mass fraction percentage.
+
+- Columns that start with `ug.ml_` prefix contain standardized values of the total concentrations of a GAG fraction (e.g. `ug.ml_CS_urine` is a sum of all CS GAGs in urine).
+
+- Ratio features contain `.` symbols (e.g. `X4s.0s_CS_urine` is ratio of 4S CS and 0S CS in urine).
+
+
+The number of cases vs controls in the dataset:
+
+```{r}
+table(data_synth$y)
+```
+
+# Fitting a reference model
+
+
+First, we will fit the reference Bayesian logistic model. We will build a combined plasma and urine model, using all GAGome features as predictors.
+
+We will set up priors for individual coefficients and the intercept as a student-t distribution with 7 degrees of freedom.
+
+
+
+```{r}
+
+SEED = 7
+set.seed(SEED)
+
+t_prior <- student_t(df = 7, location = 0, scale = 2.5)
+
+(GAGform <- as.formula(paste("y", paste(colnames(data_synth)[-1], collapse=" + "), sep=" ~ ")))
+
+
+```
+
+We will fit the logistic model using `rstanarm` function `stan_glm`.
+
+```{r, warning=F, message=F}
+
+filename <- "models/stan_glm_t_synthdata.rds" # save the model to avoid refitting
+if (!file.exists(filename)){
+  mod_sim <- stan_glm(formula = GAGform, 
+                      data = data_synth,
+                      family = binomial(link = "logit"), 
+                      prior = t_prior, 
+                      prior_intercept = t_prior, 
+                      QR = TRUE, 
+                      seed = SEED, 
+                      adapt_delta = 0.99,
+                      iter = 4000,
+                      cores = 4,
+                      chains = 4)
+  saveRDS(mod_sim, file = filename)
+} else {
+  mod_sim<- readRDS(filename)
+}
+```
+
+## Check model diagnostics
+
+We can check the fitted model diagnostics in several ways.
+
+We can look at individual trace plots (not run here).
+
+```{r, eval=F}
+plot(mod_sim, "trace") #not run
+run <- run_mcmc(model = m, stanfit = TRUE)
+```
+
+We can check the fit diagnostics (Rhat) and if the fitted model is compatible with the observed data using posterior predictive checks.
+
+
+```{r}
+summary(mod_sim)  
+pp_check(mod_sim)
+```
+
+Let's plot reference model estimates (with 95% credible intervals)
+
+```{r}
+
+tidy(mod_sim, 
+     robust = T, 
+     conf.int = T, 
+     conf.level = 0.95, 
+     conf.method = "HPD") %>%
+  ggplot(aes(x = estimate, y = fct_reorder(term, estimate))) +
+  geom_point() +
+  geom_linerange(aes(xmin = conf.low, xmax = conf.high)) +
+  theme_bw() +
+  scale_color_brewer(palette = 
+                       "Set1") +
+  ylab("GAGome feature")
+
+```
+
+# Variable selection
+
+We will use projection predictive variable selection to reduce the number predictors to the most informative ones.
+To do this, we will use the `projpred` function `cv_varsel`. This will find the best submodel for each individual submodel size (submodel size refers to the number of predictors used).
+The function will carry out the forward search and leave-one-out cross-validation to find the best submodel for each size.
+
+NOTE: depending on your hardware, this procedure can take several hours. We have run the code and stored a variable selection object as a binary file.
+
+
+```{r,warning=F, message=F}
+
+n <- dim(data_synth)[1]
+
+# save the var sel object to avoid refitting (this can take a very long time)
+
+filenamevarsel <- "models/stan_glm_t_synth_varsel.rds"
+
+if (!file.exists(filenamevarsel)){
+  refmodel <- get_refmodel(mod_sim)
+  varselF <- cv_varsel(refmodel, 
+                       method = 'forward', 
+                       cv_method = "LOO",
+                       cores = 8,
+                       seed = 11)
+  saveRDS(varselF, file = filenamevarsel)
+} else{
+  varselF <- readRDS(filenamevarsel)
+}
+```
+
+Once the projection predictive variable selection is complete, we can check the variable importance, as well the the suggestted model size. 
+
+
+```{r}
+
+(vif <- solution_terms(varselF))
+
+message("Suggested model size")
+(size_suggested = suggest_size(varselF, stat = "elpd"))
+```
+
+The default suggested size is 17 variables. The same procedure with the real manuscript data resulted in a submodel with 14 GAGome features ( the combined GAGome score in the manuscript).
+
+We will compare the performance of submodels with different sizes using different metrics (blue for the default suggested size and red for the manuscript model size).
+
+
+```{r, warning=F, message=F}
+manuscript_model_size = 14
+
+plot(varselF, stats = c("elpd", "acc", "auc", "rmse")) +
+  geom_vline(xintercept = size_suggested, color = "blue", linetype = "dashed") +
+  geom_vline(xintercept = manuscript_model_size, color = "red", linetype = "dashed")
+```
+
+We see that the accuracy, ELPD and RMSE suggest only a small difference between the models, while the AUC is almost identical.
+
+# Projection
+
+Given the above result, we will perform projection of the reference model's posterior  onto submodels with 14 features, to match the model size in the manuscript.
+
+```{r, warning=F, message=F}
+
+filenameproj <- "models/stan_proj_synth_ms.rds"
+if (!file.exists(filenameproj)){
+  proj<- project(varselF, 
+                 nterms = manuscript_model_size, 
+                 seed = SEED)
+  saveRDS(proj, file = filenameproj)
+  
+} else{
+  proj <- readRDS(filenameproj)
+}
+```
+
+## Projected model parameters
+
+We will plot the distributions of the coefficient values for the predictors (GAGome features) in the projected submodel.
+
+```{r}
+
+as_tibble(as.matrix(proj)) %>% rowid_to_column() %>%
+  pivot_longer(cols = -rowid) %>%
+  ggplot(aes(x= value, y = name, ordered = T)) +
+  geom_vline(xintercept = 0, linetype ="dashed")+
+  ggdist::stat_pointinterval(point_interval = median_hdci,
+                             position = position_dodge()) +
+  xlab("Coefficient") + 
+  ylab("GAG") +
+  theme_bw()+
+  scale_color_brewer(palette = "Set1") 
+```
+
+# Prediction
+
+Finally, we will calculate the linear predictors based on the submodel using the `proj_linpred` function.
+We use `integrated = TRUE` to average over the projected posterior draws.
+We use `transform = FALSE` to keep the prediction on the log-odds scale
+
+
+```{r,warning=F, message=F}
+
+predC<- proj_linpred(proj,
+                     newdata = data_synth, 
+                     integrated = TRUE,
+                     transform = FALSE
+)
+
+```
+
+We will add the predictions (GAGome scores) to the original data frame.
+```{r}
+data_synth$GAGscore <- predC$pred[1,]
+```
+
+# Performance
+
+Now we can check the GAGome score performance metrics: plot ROC curve, plot classification and calculate metrics (sensitivity at 98% specificity)
+
+```{r,warning=F, message=F}
+
+classification_plot <- data_synth %>%
+  ggplot(aes(x = y, y =  GAGscore)) +
+  ggbeeswarm::geom_quasirandom(aes(fill = y), 
+                               shape = 21, 
+                               size = 1.5, width = 0.25,
+                               alpha = 0.3
+  ) +
+  stat_summary(fun = median, 
+               geom = "crossbar", width = 0.5, color = "grey10") +
+  stat_summary(fun.min = function(z) { quantile(z,0.25) },
+               fun.max =function(z) { quantile(z,0.75) },
+               geom = "linerange", color = "grey10") +
+  theme_bw() +
+  scale_fill_brewer("Group", palette = "Set1") +
+  ylab("GAG score") +
+  xlab("Group")
+
+roc_score <- pROC::roc(data_synth$y, data_synth$GAGscore)
+roc_plot <- pROC::ggroc(roc_score, size = 1.2) + 
+  geom_abline(slope = 1, intercept = 1, linetype = "dashed")+
+  theme_minimal()+
+  scale_x_reverse(name = "Specificity",limits = c(1,0), expand = c(0.001,0.001)) + 
+  scale_y_continuous(name = "Sensitivity", limits = c(0,1),  expand = c(0.001, 0.001)) +
+  theme_bw() + 
+  theme(axis.ticks = element_line(color = "grey80"),
+        legend.position = "bottom") +
+  coord_equal()+
+  theme(legend.position = c(0.5, 0.2), 
+        legend.title = element_text(size = 14),
+        legend.text = element_text(size = 14)) 
+
+roc_plot + classification_plot + patchwork::plot_annotation(tag_levels = c('A'))
+```
+
+```{r}
+cpo <- cutpointr(data_synth, GAGscore,y, 
+                 method = maximize_metric,
+                 metric = metric_constrain,
+                 main_metric = sensitivity,
+                 suffix = "_constrained",
+                 constrain_metric = specificity,
+                 min_constrain = 0.98)
+cpo[,c(2,4,6:10)] %>% 
+  gt() %>%
+  fmt_percent(columns = matches("sens|spec")) %>%
+  fmt_number(columns = "AUC", decimals = 2)
+
+```
+
+The GAGscore achieves 38.1% sensitivity at 98% specificity for predicting the presence of cancer..
+
+```{r}
+sessionInfo()
+```
+
