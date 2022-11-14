@@ -2,7 +2,7 @@
 
 ## 🔬 Description
 
-This is the repository contains code and example data sets for the publication "Non-invasive detection of any-stage cancer using free glycosaminoglycans".
+This is the repository contains code and example data sets for the publication "Noninvasive detection of any-stage cancer using free glycosaminoglycans".
 Both a synthetic data set with standardized GAGome values and code for the development of free GAGome MCED scores are available in the subfolders.
 
 ## 💻 Installation and usage
