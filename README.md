@@ -2,12 +2,12 @@
 
 ## 🔬 Description
 
-This is the repository contains code and example data sets for the publication "Noninvasive detection of any-stage cancer using free glycosaminoglycans".
-Both a synthetic data set with standardized GAGome values and code for the development of free GAGome MCED scores are available in the subfolders.
+This repository contains code and example data sets for the publication "Noninvasive detection of any-stage cancer using free glycosaminoglycans".
+Both a synthetic data set with standardized GAGome values and the code for the development of free GAGome MCED scores are available in the subfolders.
 
 ## 💻 Installation and usage
 
-Run the Rmarkdown file Projpred_synth.Rmd in order to produce a model for predicting the probability of cancer, using plasma and urine GAGomes as input data. A pre-knitted HTML report is also available if you are not interested in re-running the code yourself.
+Run the Rmarkdown file Projpred_synth.Rmd in order to produce a model for predicting the probability of cancer using plasma and urine GAGomes as input data. A pre-knitted HTML report is also available if you are not interested in re-running the code yourself.
 
 https://sysbiochalmers.github.io/GAGome-MCED/projpred_synth.html
 
@@ -15,7 +15,7 @@ https://sysbiochalmers.github.io/GAGome-MCED/projpred_synth.html
 
 The free GAGome MCED scores are used in the publication below:
 ```
-Non-invasive detection of any-stage cancer using free glycosaminoglycans
+Noninvasive detection of any-stage cancer using free glycosaminoglycans
 Sinisa Bratulic, Angelo Limeta, Saeed Dabestani, Helgi Birgisson, Gunilla Enblad, Karin Stålberg,
 Göran Hesselager, Michael Häggman,Martin Höglund, Oscar E Simonson, Peter Stålberg, Henrik Lindman,
 Anna Bång-Rudenstam, Matias Ekstrand, Gunjan Kumar, Ilaria Cavarretta,Massimo Alfano, Francesco Pellegrino,
