@@ -290,7 +290,7 @@ classification_plot <- data_synth %>%
                geom = "linerange", color = "grey10") +
   theme_bw() +
   scale_fill_brewer("Group", palette = "Set1") +
-  ylab("GAG score") +
+  ylab("GAGome score") +
   xlab("Group")
 
 roc_score <- pROC::roc(data_synth$y, data_synth$GAGscore)
@@ -325,7 +325,7 @@ cpo[,c(2,4,6:10)] %>%
 
 ```
 
-The GAGscore achieves 38.1% sensitivity at 98% specificity for predicting the presence of cancer..
+The GAGome score achieves 38.1% sensitivity at 98% specificity for predicting the presence of cancer..
 
 ```{r}
 sessionInfo()
