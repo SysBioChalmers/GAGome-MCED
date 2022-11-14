@@ -7,6 +7,7 @@ Both a synthetic data set with standardized GAGome values and code for the devel
 
 ## 💻 Installation and usage
 
+Run the Rmarkdown file Projpred_synth.Rmd in order to produce a model for predicting the probability of cancer, using plasma and urine GAGomes as input data. A pre-knitted HTML report is also available if you are not interested in re-running the code yourself.
 ## 📖 Publication
 
 The free GAGome MCED scores are used in the publication below:
