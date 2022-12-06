@@ -22,7 +22,8 @@ Anna Bång-Rudenstam, Matias Ekstrand, Gunjan Kumar, Ilaria Cavarretta,Massimo A
 Thomas Mandel-Clausen, Ali Salanti, Francesca Maccari, Fabio Galeotti, Nicola Volpi, Mads Daugaard, 
 Mattias Belting, Sven Lundstam, Ulrika Stierner, Jan Nyman, Bengt Bergman, Per-Henrik Edqvist, Max Levin, 
 Andrea Salonia, Henrik Kjölhede, Eric Jonasch, Jens Nielsen, Francesco Gatto
-Manuscript doi:
+Manuscript doi: 10.1073/pnas.2115328119
+Manuscript link: https://www.pnas.org/doi/10.1073/pnas.2115328119
 ```
 
 ## 👋 Contact
